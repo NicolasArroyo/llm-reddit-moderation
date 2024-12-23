@@ -13,7 +13,7 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 ONLY_SOME_SUBREDDITS = True
 ONLY_SOME_SUBREDDITS_LIST = ['worldnews', 'askscience']
 SMALL_SUBSET_OF_COMMENTS_PER_SUBREDDIT = True
-SMALL_SUBSET_OF_COMMENTS_PER_SUBREDDIT_NUMBER = 100
+SMALL_SUBSET_OF_COMMENTS_PER_SUBREDDIT_NUMBER = 2
 
 load_dotenv()
 
@@ -77,20 +77,6 @@ def preprocess_data():
     return data_dict
 
 
-def make_user_dict(string):
-    return {
-        "role": "user",
-        "content": string
-    }
-
-
-def make_assistant_dict(string):
-    return {
-        "role": "assistant",
-        "content": string
-    }
-
-
 def make_chat(subreddit, description, rules, comment):
     base_chat = [
         {
@@ -100,23 +86,6 @@ def make_chat(subreddit, description, rules, comment):
     ]
 
     return base_chat
-
-
-def print_statistics(true_labels, predicted_labels):
-    accuracy = accuracy_score(true_labels, predicted_labels)
-    precision = precision_score(true_labels, predicted_labels)
-    recall = recall_score(true_labels, predicted_labels)
-    f1 = f1_score(true_labels, predicted_labels)
-
-    print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-    print(f"True labels: {len(true_labels)}")
-    print(f"Predicted labels: {len(predicted_labels)}")
-    print(f"Accuracy: {accuracy:.2%}")
-    print(f"Precision: {precision:.2%}")
-    print(f"Recall: {recall:.2%}")
-    print(f"F1-Score: {f1:.2%}")
-    print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-
 
 def get_statistics_dict(true_labels, predicted_labels):
     accuracy = round(accuracy_score(true_labels, predicted_labels), 2)
@@ -133,16 +102,6 @@ def get_statistics_dict(true_labels, predicted_labels):
     }
 
 
-def save_file_json(path, prefix, data):
-    timestamp = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
-    output_file = f'{path}/{prefix}_{timestamp}.json'
-
-    with open(output_file, 'w') as file:
-        json.dump(data, file, indent=4)
-
-    print(f'FILE SAVED CORRECTLY TO {output_file}')
-
-
 def main():
     client = OpenAI(
         api_key=os.getenv("OPEN_AI_KEY")
@@ -153,7 +112,11 @@ def main():
 
     data = preprocess_data()
 
+    timestamp = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+    os.makedirs(f'./results/{timestamp}')
+
     for subreddit in data:
+        os.makedirs(f'./results/{timestamp}/{subreddit}')
         print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
         print(subreddit)
         print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
@@ -193,7 +156,8 @@ def main():
 
         data[subreddit]['statistics'] = get_statistics_dict(true_labels, predicted_labels)
 
-    save_file_json('./runs', 'run', data)
+        with open(f'./results/{timestamp}/{subreddit}/results.json', 'w', encoding='utf-8') as file:
+            json.dump(data[subreddit], file, ensure_ascii=False, indent=4)
 
 
 if __name__ == '__main__':
