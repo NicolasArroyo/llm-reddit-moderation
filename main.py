@@ -1,7 +1,5 @@
 import os
 import csv
-import sys
-import time
 import json
 import datetime
 from openai import OpenAI
@@ -13,7 +11,7 @@ from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_sc
 ONLY_SOME_SUBREDDITS = True
 ONLY_SOME_SUBREDDITS_LIST = ['worldnews', 'askscience']
 SMALL_SUBSET_OF_COMMENTS_PER_SUBREDDIT = True
-SMALL_SUBSET_OF_COMMENTS_PER_SUBREDDIT_NUMBER = 2
+SMALL_SUBSET_OF_COMMENTS_PER_SUBREDDIT_NUMBER = 20
 
 load_dotenv()
 
@@ -71,7 +69,6 @@ def preprocess_data():
             data_dict[line_json['subreddit']] = {
                 'description': line_json['description'],
                 'rules': preprocess_rules(line_json['rules']),
-                'comments': preprocess_comments(line_json['subreddit'])
             }
 
     return data_dict
@@ -86,6 +83,7 @@ def make_chat(subreddit, description, rules, comment):
     ]
 
     return base_chat
+
 
 def get_statistics_dict(true_labels, predicted_labels):
     accuracy = round(accuracy_score(true_labels, predicted_labels), 2)
@@ -107,27 +105,33 @@ def main():
         api_key=os.getenv("OPEN_AI_KEY")
     )
 
-    true_labels = []
-    predicted_labels = []
-
     data = preprocess_data()
 
-    timestamp = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+    timestamp = datetime.datetime.now().strftime(f'%Y-%m-%d_%H-%M-%S_{SMALL_SUBSET_OF_COMMENTS_PER_SUBREDDIT_NUMBER}')
     os.makedirs(f'./results/{timestamp}')
 
     for subreddit in data:
+        true_labels = []
+        predicted_labels = []
+
         os.makedirs(f'./results/{timestamp}/{subreddit}')
-        print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
-        print(subreddit)
-        print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
 
         description = data[subreddit]['description']
         rules = data[subreddit]['rules']
 
-        for count, comment_dict in enumerate(data[subreddit]['comments']):
-            print(f'PROCESSING COMMENT {count}')
+        subreddit_result = {
+            'description': description,
+            'rules': rules,
+            'comments': []
+        }
+
+        for count, comment_dict in enumerate(preprocess_comments(subreddit)):
             comment = comment_dict['comment']
+            label = comment_dict['label']
+
             mod_chat = make_chat(subreddit, description, rules, comment)
+
+            print(f'{subreddit}: Comment {count}')
 
             try:
                 completion = client.beta.chat.completions.parse(
@@ -141,23 +145,23 @@ def main():
 
                 if prediction.parsed:
                     comment_dict['prediction'] = json.loads(prediction.content)
-                    true_labels.append(comment_dict['label'])
+                    true_labels.append(label)
                     predicted_labels.append(comment_dict['prediction']['would_moderate'])
+                    subreddit_result['comments'].append(comment_dict)
 
                 elif prediction.refusal:
-                    print(f'COMMENT {count} REFUSAL')
+                    print(f'{subreddit}: Comment {count} refusal is True')
                     print(prediction.refusal)
 
 
             except Exception as e:
-                print(f'COMMENT {count} EXCEPTION')
-                print(e)
+                print(f'{subreddit}: Comment {count} gave exception: {e}')
                 pass
 
-        data[subreddit]['statistics'] = get_statistics_dict(true_labels, predicted_labels)
+            subreddit_result['statistics'] = get_statistics_dict(true_labels, predicted_labels)
 
         with open(f'./results/{timestamp}/{subreddit}/results.json', 'w', encoding='utf-8') as file:
-            json.dump(data[subreddit], file, ensure_ascii=False, indent=4)
+            json.dump(subreddit_result, file, ensure_ascii=False, indent=4)
 
 
 if __name__ == '__main__':
