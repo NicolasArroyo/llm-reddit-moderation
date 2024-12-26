@@ -70,7 +70,7 @@ def check_batch_status(client, subreddit):
     failed = batch.request_counts.failed
     total = batch.request_counts.total
 
-    print(f"Status: {status}\n{completed} completed | {failed} failed\nTotal = {total}")
+    return {"status": status, "completed": completed, "failed": failed, "total": total}
 
 
 def create_batch_result(client, subreddit):
@@ -116,41 +116,49 @@ def print_stats_for_subreddit(subreddit):
     print(get_statistics_dict(labels, predicted_labels))
 
 
+def start_subreddit_batch_pipeline(subreddit):
+    client = OpenAI(api_key=os.getenv("OPEN_AI_KEY"))
+
+    # Create a batch for a specific subreddit and submit it.
+    # Update the index so we know the batch id of a given subreddit.
+    create_batch_for_subreddit(client, subreddit)
+
+    # Check the status of your batch
+    while True:
+        status = check_batch_status(client, subreddit)
+
+        if status["status"] == "completed":
+            break
+
+        print(
+            f"Status: {status['status']}\n"
+            f"Completed: {status['completed']}\n"
+            f"Failed: {status['failed']}\n"
+            f"Total: {status['total']}   "
+        )
+        time.sleep(1)
+        print()
+
+    # Write result of batch to jsonl file inside batch_results
+    # Update the index so we know the file id of the batch result
+    create_batch_result(client, subreddit)
+
+
 def main():
     load_dotenv()
 
-    client = OpenAI(api_key=os.getenv("OPEN_AI_KEY"))
-
-    # First step:
-    # 1. Submit the preprocessed data to OpenAI servers.
-    # 2. Create an index to know the file id of each subreddit.
+    # NOTE: This should only be done once
+    # Submit the preprocessed data to OpenAI servers.
+    # Create an index to know the file id of each subreddit.
     # submit_all_subreddits(client)
 
-    # Second step:
-    # 1. Pick your subreddit
-    # specific_subreddit = "worldnews"
+    # Pick your subreddit
+    subreddit = "books"
 
-    # Third step:
-    # 1. Create a batch for a specific subreddit and submitting it.
-    # 2. Update the index so we know the batch id of a given subreddit.
-    # create_batch_for_subreddit(client, specific_subreddit)
+    start_subreddit_batch_pipeline(subreddit)
 
-    # Fourth step:
-    # 1. Check the status of your batch
-    # 2. Repeat step 1
-    # while True:
-    #     check_batch_status(client, specific_subreddit)
-    #     time.sleep(1)
-    #     print()
-
-    # Fifth step:
-    # 1. Write result of batch to jsonl file inside batch_results
-    # 2. Update the index so we know the file id of the batch result
-    # create_batch_result(client, specific_subreddit)
-
-    # Sixth step
-    # 1. Check stats for a given subreddit
-    # print_stats_for_subreddit(specific_subreddit)
+    # Check stats for a given subreddit
+    print_stats_for_subreddit(subreddit)
 
 
 if __name__ == "__main__":
