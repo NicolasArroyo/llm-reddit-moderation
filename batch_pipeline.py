@@ -18,7 +18,9 @@ def get_statistics_dict(true_labels, predicted_labels):
     return {"accuracy": accuracy, "precision": precision, "recall": recall, "f1": f1}
 
 
-def submit_all_subreddits(client):
+def submit_all_subreddits():
+    client = OpenAI(api_key=os.getenv("OPEN_AI_KEY"))
+
     subreddit_data = {}
     with open(
         f"./data/rule_moderation/subreddit_rules_w_description.jsonl"
@@ -150,7 +152,7 @@ def main():
     # NOTE: This should only be done once
     # Submit the preprocessed data to OpenAI servers.
     # Create an index to know the file id of each subreddit.
-    # submit_all_subreddits(client)
+    # submit_all_subreddits()
 
     # Pick your subreddit
     subreddit = "books"
