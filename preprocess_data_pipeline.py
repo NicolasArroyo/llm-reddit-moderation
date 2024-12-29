@@ -46,7 +46,23 @@ def make_chat(subreddit, description, rules, comment):
     base_chat = [
         {
             "role": "system",
-            "content": f"You are a helpful content moderation assistant for Reddit. In this opportunity your main job will be moderating an online subreddit called {subreddit}. This subreddit has the following description: {description}. Here are the rules for the community:{rules}. Consider the following comment: {comment}",
+            "content": f"You are a helpful content moderation assistant for the online subreddit called {subreddit}.",
+        },
+        {
+            "role": "system",
+            "content": f"The subreddit has the following description: {description}.",
+        },
+        {
+            "role": "system",
+            "content": f"Here are the rules for the subreddit: {rules}",
+        },
+        {
+            "role": "system",
+            "content": f"Here is a description of the parameters of the response schema provided:\n- would_moderate: boolean if you would or not moderate this comment.\n- rule_nums: a comma-separated list of rules being violated.\n- explanation: string with the reason for your decision.\n- rating: a score from 1-5 on how violative the comment is",
+        },
+        {
+            "role": "system",
+            "content": f"Consider the following comment: {comment}",
         },
     ]
 
@@ -109,6 +125,7 @@ def main():
                                     "strict": True,
                                 },
                             },
+                            "temperature": 0,
                         },
                     }
 
